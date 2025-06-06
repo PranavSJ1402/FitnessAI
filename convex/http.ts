@@ -93,7 +93,7 @@ function validateWorkoutPlan(plan: any) {
 function validateDietPlan(plan: any) {
   // only keep the fields we want
   const validatedPlan = {
-    dailyCalories: plan.dailyCalories,
+    dailycalories: plan.dailyCalories, // changed from dailyCalories → dailycalories
     meals: plan.meals.map((meal: any) => ({
       name: meal.name,
       foods: meal.foods,
@@ -176,6 +176,8 @@ http.route({
       const workoutResult = await model.generateContent(workoutPrompt)
       const workoutPlanText = workoutResult.response.text();
 
+      console.log(workoutPlanText)
+
       //VALIDATE INPUT COMING FROM AI
 
       let workoutPlan = JSON.parse(workoutPlanText);
@@ -221,11 +223,14 @@ http.route({
       const dietResult = await model.generateContent(dietPrompt)
       const dietPlanText = dietResult.response.text();
 
+      console.log(dietPlanText)
+
       //VALIDATE INPUT COMING FROM AI
 
       let dietPlan = JSON.parse(dietPlanText);
       dietPlan = validateDietPlan(dietPlan);  
 
+      
 
       // SAVE TO CONVEX DB
 

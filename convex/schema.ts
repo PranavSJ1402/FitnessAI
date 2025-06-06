@@ -20,8 +20,8 @@ export default defineSchema({
           routines: v.array(
             v.object({
               name: v.string(),
-              sets: v.optional(v.number()),
-              reps: v.optional(v.number()),
+              sets: v.number(),
+              reps: v.number(),
               duration: v.optional(v.string()),
               description: v.optional(v.string()),
               exercises: v.optional(v.array(v.string())),
@@ -31,7 +31,7 @@ export default defineSchema({
       ),
     }),
     dietPlan: v.object({
-      dailycalories: v.number(),
+      dailycalories: v.optional(v.number()),
       meals: v.array(
         v.object({
           name: v.string(),

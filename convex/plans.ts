@@ -21,7 +21,7 @@ export const createPlan = mutation({
       ),
     }),
     dietPlan: v.object({
-      dailycalories: v.number(),
+      dailycalories: v.optional(v.number()),
       meals: v.array(
         v.object({
           name: v.string(),
