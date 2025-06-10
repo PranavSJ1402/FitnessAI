@@ -1,8 +1,8 @@
-import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 export const createPlan = mutation({
-    args: {
+  args: {
     userId: v.string(),
     name: v.string(),
     workoutPlan: v.object({
@@ -21,7 +21,7 @@ export const createPlan = mutation({
       ),
     }),
     dietPlan: v.object({
-      dailycalories: v.optional(v.number()),
+      dailyCalories: v.number(),
       meals: v.array(
         v.object({
           name: v.string(),
@@ -31,33 +31,32 @@ export const createPlan = mutation({
     }),
     isActive: v.boolean(),
   },
-  handler: async(ctx, args)=>{
-      const activePlans = await ctx.db
+  handler: async (ctx, args) => {
+    const activePlans = await ctx.db
       .query("plans")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
-    
+
     for (const plan of activePlans) {
       await ctx.db.patch(plan._id, { isActive: false });
     }
-  
-    const planId = await ctx.db.insert("plans", args)
+
+    const planId = await ctx.db.insert("plans", args);
 
     return planId;
-  }
-
-})
+  },
+});
 
 export const getUserPlans = query({
-  args: {userId: v.string()},
-  handler: async (ctx, args)=>{
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
     const plans = await ctx.db
-    .query("plans")
-    .withIndex("by_user_id", (q)=>q.eq("userId", args.userId))
-    .order("desc")
-    .collect();
+      .query("plans")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .collect();
 
     return plans;
-  }
-})
+  },
+});

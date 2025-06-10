@@ -7,7 +7,7 @@ export default defineSchema({
     email: v.string(),
     image: v.optional(v.string()),
     clerkId: v.string(),
-  }).index("by_clerkId", ["clerkId"]),
+  }).index("by_clerk_id", ["clerkId"]),
 
   plans: defineTable({
     userId: v.string(),
@@ -20,8 +20,8 @@ export default defineSchema({
           routines: v.array(
             v.object({
               name: v.string(),
-              sets: v.number(),
-              reps: v.number(),
+              sets: v.optional(v.number()),
+              reps: v.optional(v.number()),
               duration: v.optional(v.string()),
               description: v.optional(v.string()),
               exercises: v.optional(v.array(v.string())),
@@ -31,7 +31,7 @@ export default defineSchema({
       ),
     }),
     dietPlan: v.object({
-      dailycalories: v.optional(v.number()),
+      dailyCalories: v.number(),
       meals: v.array(
         v.object({
           name: v.string(),

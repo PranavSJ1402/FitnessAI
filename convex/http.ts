@@ -3,10 +3,11 @@ import { WebhookEvent } from "@clerk/nextjs/server";
 import { Webhook } from "svix";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
-import {GoogleGenerativeAI} from '@google/generative-ai'
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const http = httpRouter();
 
-const genAI = new GoogleGenerativeAI (process.env.GEMINI_API_KEY!);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 http.route({
   path: "/clerk-webhook",
@@ -14,7 +15,7 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      throw new Error("Missing CLERK_WEBHOOK_SECRET environment variable ");
+      throw new Error("Missing CLERK_WEBHOOK_SECRET environment variable");
     }
 
     const svix_id = request.headers.get("svix-id");
@@ -36,8 +37,8 @@ http.route({
     try {
       evt = wh.verify(body, {
         "svix-id": svix_id,
-        "svix-signature": svix_signature,
         "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
       }) as WebhookEvent;
     } catch (err) {
       console.error("Error verifying webhook:", err);
@@ -47,10 +48,10 @@ http.route({
     const eventType = evt.type;
 
     if (eventType === "user.created") {
-      const { id, first_name, last_name, image_url, email_addresses } =
-        evt.data;
+      const { id, first_name, last_name, image_url, email_addresses } = evt.data;
 
       const email = email_addresses[0].email_address;
+
       const name = `${first_name || ""} ${last_name || ""}`.trim();
 
       try {
@@ -60,16 +61,32 @@ http.route({
           image: image_url,
           clerkId: id,
         });
-        return new Response("User synced", { status: 200 });
       } catch (error) {
         console.log("Error creating user:", error);
         return new Response("Error creating user", { status: 500 });
       }
     }
 
-    // TODO: UPDATE USER
-    // Always return something
-    return new Response("Event received but not handled", { status: 200 });
+    if (eventType === "user.updated") {
+      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+
+      const email = email_addresses[0].email_address;
+      const name = `${first_name || ""} ${last_name || ""}`.trim();
+
+      try {
+        await ctx.runMutation(api.users.updateUser, {
+          clerkId: id,
+          email,
+          name,
+          image: image_url,
+        });
+      } catch (error) {
+        console.log("Error updating user:", error);
+        return new Response("Error updating user", { status: 500 });
+      }
+    }
+
+    return new Response("Webhooks processed successfully", { status: 200 });
   }),
 });
 
@@ -93,7 +110,7 @@ function validateWorkoutPlan(plan: any) {
 function validateDietPlan(plan: any) {
   // only keep the fields we want
   const validatedPlan = {
-    dailycalories: plan.dailyCalories, // changed from dailyCalories → dailycalories
+    dailyCalories: plan.dailyCalories,
     meals: plan.meals.map((meal: any) => ({
       name: meal.name,
       foods: meal.foods,
@@ -121,65 +138,66 @@ http.route({
         dietary_restrictions,
       } = payload;
 
+      console.log("Payload is here:", payload);
+
       const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-001",
         generationConfig: {
-          temperature: 0.4,
+          temperature: 0.4, // lower temperature for more predictable outputs
           topP: 0.9,
           responseMimeType: "application/json",
         },
       });
 
       const workoutPrompt = `You are an experienced fitness coach creating a personalized workout plan based on:
-        Age: ${age}
-        Height: ${height}
-        Weight: ${weight}
-        Injuries or limitations: ${injuries}
-        Available days for workout: ${workout_days}
-        Fitness goal: ${fitness_goal}
-        Fitness level: ${fitness_level}
-        
-        As a professional coach:
-        - Consider muscle group splits to avoid overtraining the same muscles on consecutive days
-        - Design exercises that match the fitness level and account for any injuries
-        - Structure the workouts to specifically target the user's fitness goal
-        
-        CRITICAL SCHEMA INSTRUCTIONS:
-        - Your output MUST contain ONLY the fields specified below, NO ADDITIONAL FIELDS
-        - "sets" and "reps" MUST ALWAYS be NUMBERS, never strings
-        - For example: "sets": 3, "reps": 10
-        - Do NOT use text like "reps": "As many as possible" or "reps": "To failure"
-        - Instead use specific numbers like "reps": 12 or "reps": 15
-        - For cardio, use "sets": 1, "reps": 1 or another appropriate number
-        - NEVER include strings for numerical fields
-        - NEVER add extra fields not shown in the example below
-        
-        Return a JSON object with this EXACT structure:
-        {
-          "schedule": ["Monday", "Wednesday", "Friday"],
-          "exercises": [
-            {
-              "day": "Monday",
-              "routines": [
-                {
-                  "name": "Exercise Name",
-                  "sets": 3,
-                  "reps": 10
-                }
-              ]
-            }
-          ]
-        }
-        
-        DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
+      Age: ${age}
+      Height: ${height}
+      Weight: ${weight}
+      Injuries or limitations: ${injuries}
+      Available days for workout: ${workout_days}
+      Fitness goal: ${fitness_goal}
+      Fitness level: ${fitness_level}
+      
+      As a professional coach:
+      - Consider muscle group splits to avoid overtraining the same muscles on consecutive days
+      - Design exercises that match the fitness level and account for any injuries
+      - Structure the workouts to specifically target the user's fitness goal
+      
+      CRITICAL SCHEMA INSTRUCTIONS:
+      - Your output MUST contain ONLY the fields specified below, NO ADDITIONAL FIELDS
+      - "sets" and "reps" MUST ALWAYS be NUMBERS, never strings
+      - For example: "sets": 3, "reps": 10
+      - Do NOT use text like "reps": "As many as possible" or "reps": "To failure"
+      - Instead use specific numbers like "reps": 12 or "reps": 15
+      - For cardio, use "sets": 1, "reps": 1 or another appropriate number
+      - NEVER include strings for numerical fields
+      - NEVER add extra fields not shown in the example below
+      
+      Return a JSON object with this EXACT structure:
+      {
+        "schedule": ["Monday", "Wednesday", "Friday"],
+        "exercises": [
+          {
+            "day": "Monday",
+            "routines": [
+              {
+                "name": "Exercise Name",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          }
+        ]
+      }
+      
+      DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
 
-      const workoutResult = await model.generateContent(workoutPrompt)
+      const workoutResult = await model.generateContent(workoutPrompt);
       const workoutPlanText = workoutResult.response.text();
 
       console.log(workoutPlanText)
-
-      //VALIDATE INPUT COMING FROM AI
-
+      
+      // VALIDATE THE INPUT COMING FROM AI
       let workoutPlan = JSON.parse(workoutPlanText);
       workoutPlan = validateWorkoutPlan(workoutPlan);
 
@@ -219,28 +237,25 @@ http.route({
         }
         
         DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
-      
-      const dietResult = await model.generateContent(dietPrompt)
+
+      const dietResult = await model.generateContent(dietPrompt);
       const dietPlanText = dietResult.response.text();
 
       console.log(dietPlanText)
-
-      //VALIDATE INPUT COMING FROM AI
-
+      // VALIDATE THE INPUT COMING FROM AI
       let dietPlan = JSON.parse(dietPlanText);
-      dietPlan = validateDietPlan(dietPlan);  
+      dietPlan = validateDietPlan(dietPlan);
 
-      // SAVE TO CONVEX DB
-
-      const planId = await ctx.runMutation(api.plans.createPlan,{
+      // save to our DB: CONVEX
+      const planId = await ctx.runMutation(api.plans.createPlan, {
         userId: user_id,
         dietPlan,
         isActive: true,
         workoutPlan,
-        name:`${fitness_goal} Plan -${new Date().toLocaleDateString()}`
-      })
-      
-  return new Response(
+        name: `${fitness_goal} Plan - ${new Date().toLocaleDateString()}`,
+      });
+
+      return new Response(
         JSON.stringify({
           success: true,
           data: {
@@ -254,7 +269,6 @@ http.route({
           headers: { "Content-Type": "application/json" },
         }
       );
-    
     } catch (error) {
       console.error("Error generating fitness plan:", error);
       return new Response(
