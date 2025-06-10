@@ -230,8 +230,6 @@ http.route({
       let dietPlan = JSON.parse(dietPlanText);
       dietPlan = validateDietPlan(dietPlan);  
 
-      
-
       // SAVE TO CONVEX DB
 
       const planId = await ctx.runMutation(api.plans.createPlan,{
